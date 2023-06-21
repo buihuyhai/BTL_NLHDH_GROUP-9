@@ -15,6 +15,7 @@ struct Process {
 struct Schedule {
     int *processId;
     int *startTime;
+    int *endTime;
     int totalSlots;
 };
 
@@ -44,17 +45,18 @@ Process *inputProcesses(int &n) {
 }
 
 void printProcesses(Process *processes, int n) {
-    cout << setw(8) << "Process";
-    cout << setw(8) << "Arrival";
-    cout << setw(8) << "Burst";
-    cout << setw(8) << "Waiting\n";
+    cout << left << setw(15) << "Process";
+    cout << left << setw(15) << "Arrival";
+    cout << left << setw(15) << "Burst";
+    cout << left << setw(15) << "Waiting" << endl;
 
     for (int i = 0; i < n; i++) {
-        cout << setw(8) << processes[i].id;
-        cout << setw(8) << processes[i].arrivalTime;
-        cout << setw(8) << processes[i].burstTime;
-        cout << setw(8) << processes[i].waitingTime << endl;
+        cout << left << setw(15) << processes[i].id;
+        cout << left << setw(15) << processes[i].arrivalTime;
+        cout << left << setw(15) << processes[i].burstTime;
+        cout << left << setw(15) << processes[i].waitingTime << endl;
     }
+    cout << "\n-------------------------------------------------\n";
 }
 Schedule FCFS(Process *processes, int n) {
     sort(processes, processes + n, sortByArrivalTime);
@@ -166,6 +168,18 @@ Schedule SRT(Process *processes, int n) {
     int complete = 0;
     int currentTime = 0;
 
+    Schedule schedule;
+    schedule.processId = new int[n];
+    schedule.startTime = new int[n];
+
+    int currentProcess = -1;
+    int currentStartTime = -1;
+
+    cout << "\n---------Bieu do Grant---------------------------------------------\n";
+    cout << left << setw(4) << " ";
+    cout << left << setw(10) << "Time";
+    cout << left << setw(8) << "Process" << endl;
+
     while (complete != n) {
         int shortest = -1;
         int minTime = INT_MAX;
@@ -182,6 +196,18 @@ Schedule SRT(Process *processes, int n) {
             continue;
         }
 
+        if (currentProcess != shortest) {
+            if (currentProcess != -1) {
+                cout << left << setw(4) << currentStartTime;
+                cout << left << setw(4) << "->";
+                cout << left << setw(4) << currentTime << ":";
+                cout << left << setw(4) << "P" << processes[currentProcess].id << endl;
+            }
+
+            currentProcess = shortest;
+            currentStartTime = currentTime;
+        }
+
         remainingTime[shortest]--;
 
         if (remainingTime[shortest] == 0) {
@@ -192,19 +218,26 @@ Schedule SRT(Process *processes, int n) {
             if (processes[shortest].waitingTime < 0) {
                 processes[shortest].waitingTime = 0;
             }
+
+            cout << left << setw(4) << currentStartTime;
+            cout << left << setw(4) << "->";
+            cout << left << setw(4) << finishTime << ":";
+            cout << left << setw(4) << "P" << processes[currentProcess].id << endl;
+
+            currentProcess = -1;
         }
 
         currentTime++;
     }
 
-    Schedule schedule;
-    schedule.processId = new int[n];
-    schedule.startTime = new int[n];
-
-    for (int i = 0; i < n; i++) {
-        schedule.processId[i] = i + 1;
-        schedule.startTime[i] = processes[i].arrivalTime;
+    if (currentProcess != -1) {
+        cout << left << setw(4) << currentStartTime;
+        cout << left << setw(4) << "->";
+        cout << left << setw(4) << currentTime << ":";
+        cout << left << setw(4) << "P" << processes[currentProcess].id << endl;
     }
+
+    cout << "\n-----------------------------------------------------\n";
 
     schedule.totalSlots = n;
 
@@ -214,6 +247,7 @@ Schedule SRT(Process *processes, int n) {
 }
 
 Schedule RR(Process *processes, int n, int quantum) {
+    sort(processes,processes+n,sortByArrivalTime);
     int *remainingTime = new int[n];
     for (int i = 0; i < n; i++) {
         remainingTime[i] = processes[i].burstTime;
@@ -221,14 +255,18 @@ Schedule RR(Process *processes, int n, int quantum) {
 
     int complete = 0;
     int currentTime = 0;
-
+    cout << "\n---------Bieu do Grant---------------------------------------------\n";
+    cout << left << setw(4) << " ";
+    cout << left << setw(10) << "Time";
+    cout << left << setw(8) << "Process" << endl;
     while (complete != n) {
         bool allDone = true;
-
         for (int i = 0; i < n; i++) {
             if (processes[i].arrivalTime <= currentTime && remainingTime[i] > 0) {
+                string s = "P"; s+=(processes[i].id+48);
+                cout << left << setw(4) << currentTime;
+                cout << left << setw(4) << "->";
                 allDone = false;
-
                 if (remainingTime[i] > quantum) {
                     currentTime += quantum;
                     remainingTime[i] -= quantum;
@@ -241,14 +279,17 @@ Schedule RR(Process *processes, int n, int quantum) {
                     remainingTime[i] = 0;
                     complete++;
                 }
+                cout << left << setw(4) << currentTime;
+                cout << left << setw(4) << ":";
+                cout << left << setw(4) << s << endl;
             }
+            
         }
-
         if (allDone) {
             currentTime++;
         }
     }
-
+    cout << "\n-----------------------------------------------------\n";
     Schedule schedule;
     schedule.processId = new int[n];
     schedule.startTime = new int[n];
@@ -266,16 +307,39 @@ Schedule RR(Process *processes, int n, int quantum) {
 }
 
 
-void printSchedule(Schedule schedule) {
-    cout << "\nBieu do Gantt:\n";
-    for (int i = 0; i < schedule.totalSlots; i++) {
-        cout << setw(4) << schedule.processId[i];
+void printSchedule(Schedule schedule ,Process *process,int n) {
+    int tong = 0;
+    for(int i = 0; i < n; i++) tong +=  process[i].burstTime;
+    for (int i = 0; i < schedule.totalSlots-1; i++) {
+        for(int j = i+1; j < schedule.totalSlots; j++) {
+            if(schedule.startTime[i] > schedule.startTime[j]) {
+                swap(schedule.startTime[i],schedule.startTime[j]);
+                swap(schedule.endTime[i],schedule.endTime[j]);
+                swap(schedule.processId[i],schedule.processId[j]);
+            }
+        }
     }
-    cout << endl;
-    for (int i = 0; i < schedule.totalSlots; i++) {
-        cout << setw(4) << schedule.startTime[i];
+    
+    cout << "\n-----------------------------------------------------------------\n";
+    //in bieu do grant
+    cout << "Bieu do Grant:\n";
+    cout << left << setw(4) << " ";
+    cout << left << setw(10) << "Time";
+    cout << left << setw(8) << "Process" << endl;
+    for(int i = 0; i < schedule.totalSlots;i++) {
+        string s = "P"; s+=(schedule.processId[i]+48);
+        cout << left << setw(4) << schedule.startTime[i];
+        cout << left << setw(4) << "->";
+        if(i==schedule.totalSlots-1) {
+            cout << left << setw(4) << tong;
+        }
+        else {
+            cout << left << setw(4) << schedule.startTime[i+1];
+        }
+        cout << left << setw(4) << ":";
+        cout << left << setw(4) << s << endl;   
     }
-    cout << endl;
+    cout << "\n-----------------------------------------------------------------\n";
 }
 
 float calculateAverageWaitingTime(Process *processes, int n) {
@@ -330,7 +394,7 @@ int main() {
     }
 
     printProcesses(processes, n);
-    printSchedule(schedule);
+    if(choice!=4 && choice!=3) printSchedule(schedule,processes,n);
     cout << "Thoi gian cho trung binh: " << averageWaitingTime << endl;
 
     delete[] processes;
